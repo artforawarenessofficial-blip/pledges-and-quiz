@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { ADMIN_COOKIE_NAME, verifyAdminToken } from '@/lib/auth';
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ slug: string }> }) {
-  const adminToken = req.cookies.get('admin_token');
-  if (!adminToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const { slug } = await context.params;
@@ -50,8 +50,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ slug:
 }
 
 export async function DELETE(req: NextRequest, context: { params: Promise<{ slug: string }> }) {
-  const adminToken = req.cookies.get('admin_token');
-  if (!adminToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const { slug } = await context.params;

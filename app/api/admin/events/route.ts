@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { ADMIN_COOKIE_NAME, verifyAdminToken } from '@/lib/auth';
 
 export async function GET() {
   const events = await prisma.event.findMany({
@@ -13,8 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const adminToken = req.cookies.get('admin_token');
-  if (!adminToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
   const { title, slug, description, startDate } = body;

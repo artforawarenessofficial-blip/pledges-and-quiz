@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const COOKIE_NAME = 'admin_token';
-const COOKIE_VALUE = 'admin_authenticated';
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
+import { ADMIN_COOKIE_NAME, ADMIN_COOKIE_MAX_AGE, computeAdminToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
   if (!ADMIN_PASSWORD || body.password !== ADMIN_PASSWORD) {
     return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
   }
 
+  // Cookie value is derived from server secrets (HMAC), not a guessable sentinel.
+  const token = await computeAdminToken();
+  if (!token) {
+    // ADMIN_SECRET missing — refuse to issue a session rather than fail open.
+    return NextResponse.json({ error: 'Server auth is not configured' }, { status: 500 });
+  }
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, COOKIE_VALUE, {
+  res.cookies.set(ADMIN_COOKIE_NAME, token, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
     path: '/', // must cover /api/admin/* too, not just /admin pages
-    maxAge: MAX_AGE,
+    maxAge: ADMIN_COOKIE_MAX_AGE,
     sameSite: 'lax',
   });
 
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, '', {
+  res.cookies.set(ADMIN_COOKIE_NAME, '', {
     httpOnly: true,
     path: '/',
     maxAge: 0,

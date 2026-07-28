@@ -437,68 +437,58 @@ function QuizEngine({ quiz, userData, onComplete }: {
   onComplete: (answers: Record<string, string>, scoreRes: { score: number, total: number }) => void
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answerState, setAnswerState] = useState<'idle' | 'selected' | 'verifying' | 'revealed'>('idle');
+  // No per-question answer reveal: correctness is validated server-side only at
+  // submission time. This removes the old /api/verify-answer endpoint that leaked
+  // the correct answer for any questionId with no auth.
+  const [answerState, setAnswerState] = useState<'idle' | 'selected' | 'submitting'>('idle');
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [correctOptionId, setCorrectOptionId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const question = quiz.questions[currentIndex];
 
-  const isCorrect = selectedOptionId === correctOptionId;
-  const mood = answerState === 'revealed' ? (isCorrect ? 'happy' : 'sad') : 'neutral';
-  const moodColor = mood === 'neutral' ? 'bg-stone-200' : (mood === 'happy' ? 'bg-teal-500' : 'bg-red-400');
+  const moodColor = 'bg-stone-200';
 
   const handleSelect = (aId: string) => {
-    // Allow changing the pick freely until it's confirmed. Lock only once
-    // we're verifying or the answer has been revealed.
-    if (answerState === 'verifying' || answerState === 'revealed') return;
+    // Allow changing the pick freely until it's confirmed.
+    if (answerState === 'submitting') return;
     setSelectedOptionId(aId);
     setAnswerState('selected');
   };
 
   const handleConfirm = async () => {
     if (answerState !== 'selected' || !selectedOptionId) return;
-    setAnswerState('verifying');
 
+    const newAnswers = { ...answers, [question.id]: selectedOptionId };
+    setAnswers(newAnswers);
+
+    if (currentIndex < quiz.questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setAnswerState('idle');
+      setSelectedOptionId(null);
+      return;
+    }
+
+    // Last question — score the whole attempt server-side.
+    setAnswerState('submitting');
     try {
-      const res = await fetch('/api/verify-answer', {
+      const attemptRes = await fetch('/api/quiz-attempts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId: question.id, optionId: selectedOptionId })
+        body: JSON.stringify({
+          quizId: quiz.id,
+          userName: userData.fullName,
+          userEmail: userData.email,
+          whatsapp: userData.whatsapp,
+          agreed: userData.agreed,
+          orgId: userData.orgId,
+          answers: newAnswers
+        })
       });
-      const data = await res.json();
-      setCorrectOptionId(data.correctOptionId);
-      setAnswerState('revealed');
-
-      setTimeout(async () => {
-        const newAnswers = { ...answers, [question.id]: selectedOptionId };
-        setAnswers(newAnswers);
-
-        if (currentIndex < quiz.questions.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-          setAnswerState('idle');
-          setSelectedOptionId(null);
-          setCorrectOptionId(null);
-        } else {
-          const attemptRes = await fetch('/api/quiz-attempts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              quizId: quiz.id,
-              userName: userData.fullName,
-              userEmail: userData.email,
-              whatsapp: userData.whatsapp,
-              agreed: userData.agreed,
-              orgId: userData.orgId,
-              answers: newAnswers
-            })
-          });
-          const attemptData = await attemptRes.json();
-          onComplete(newAnswers, { score: attemptData.score, total: attemptData.totalQuestions });
-        }
-      }, 2000);
+      const attemptData = await attemptRes.json();
+      onComplete(newAnswers, { score: attemptData.score, total: attemptData.totalQuestions });
     } catch (e) {
       console.error(e);
+      setAnswerState('selected');
     }
   };
 
@@ -522,33 +512,20 @@ function QuizEngine({ quiz, userData, onComplete }: {
       <div className="space-y-3 mb-8">
         {question.answerOptions.map((opt) => {
           const isSelected = selectedOptionId === opt.id;
-          const isActuallyCorrect = correctOptionId === opt.id;
 
           let optStyle = "border-gray-200 hover:border-yellow-400 hover:bg-gray-50";
-          if (answerState === 'selected') {
+          if (answerState === 'selected' || answerState === 'submitting') {
             optStyle = isSelected ? "border-yellow-400 ring-2 ring-yellow-400/20 bg-yellow-50 scale-[1.02]" : "border-gray-200 opacity-75";
-          } else if (answerState === 'verifying') {
-            optStyle = isSelected ? "border-yellow-400 ring-2 ring-yellow-400/20 bg-yellow-50 animate-pulse" : "border-gray-200 opacity-50";
-          } else if (answerState === 'revealed') {
-            if (isActuallyCorrect) {
-              optStyle = "border-green-500 bg-green-100 scale-[1.02] text-green-900";
-            } else if (isSelected && !isActuallyCorrect) {
-              optStyle = "border-red-500 bg-red-100 text-red-900";
-            } else {
-              optStyle = "border-gray-200 opacity-50 blur-[1px]";
-            }
           }
 
           return (
             <button
               key={opt.id}
               onClick={() => handleSelect(opt.id)}
-              disabled={answerState === 'verifying' || answerState === 'revealed'}
+              disabled={answerState === 'submitting'}
               className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-300 font-medium text-gray-800 flex justify-between items-center ${optStyle}`}
             >
               <span>{opt.text}</span>
-              {answerState === 'revealed' && isActuallyCorrect && <Check className="w-5 h-5 text-green-600" />}
-              {answerState === 'revealed' && isSelected && !isActuallyCorrect && <X className="w-5 h-5 text-red-600" />}
             </button>
           );
         })}
@@ -557,18 +534,13 @@ function QuizEngine({ quiz, userData, onComplete }: {
       <div className="h-16 flex items-center justify-center">
         {answerState === 'selected' && (
           <button onClick={handleConfirm} className="w-full py-4 rounded-full bg-teal-500 hover:bg-teal-600 text-white font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 transform">
-            Submit Answer
+            {currentIndex < quiz.questions.length - 1 ? 'Next Question' : 'Submit Quiz'}
           </button>
         )}
-        {answerState === 'verifying' && (
+        {answerState === 'submitting' && (
           <div className="flex items-center text-teal-600 font-medium">
             <Loader2 className="w-5 h-5 animate-spin mr-3" />
-            Verifying Answer...
-          </div>
-        )}
-        {answerState === 'revealed' && (
-          <div className="text-gray-500 font-medium animate-pulse">
-            {currentIndex < quiz.questions.length - 1 ? "Next question coming..." : "Calculating final score..."}
+            Calculating final score...
           </div>
         )}
       </div>

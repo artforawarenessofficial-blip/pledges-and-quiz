@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for the Docker/Cloud Run runner image (server.js + minimal deps).
+  output: 'standalone',
   async headers() {
     return [
       {
@@ -17,7 +19,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
+      // Google Cloud Storage (uploaded logos / posters)
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
     ],
   },
 };

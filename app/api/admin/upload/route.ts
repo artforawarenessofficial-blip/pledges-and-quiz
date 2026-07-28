@@ -1,14 +1,12 @@
-import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { ADMIN_COOKIE_NAME, verifyAdminToken } from '@/lib/auth';
+import { uploadFile } from '@/lib/storage';
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
-  const token = cookieStore.get('admin_token')?.value;
-  // Auth cookie value is 'admin_authenticated' (set by /api/admin/auth) — matches
-  // middleware + the other admin routes. Comparing to ADMIN_PASSWORD was wrong and
-  // 401'd every admin image upload.
-  if (token !== 'admin_authenticated') {
+  const token = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+  if (!(await verifyAdminToken(token))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -18,7 +16,8 @@ export async function POST(req: NextRequest) {
 
   const ext = file.name.split('.').pop() ?? 'png';
   const filename = `logos/${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
 
-  const blob = await put(filename, file, { access: 'public' });
-  return NextResponse.json({ url: blob.url });
+  const url = await uploadFile(buffer, filename, file.type || 'application/octet-stream');
+  return NextResponse.json({ url });
 }
