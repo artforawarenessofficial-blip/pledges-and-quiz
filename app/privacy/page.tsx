@@ -127,6 +127,15 @@ export default function PrivacyPolicyPage() {
           </p>
         </Section>
 
+        <Section id="uploads" title="Photos and uploads">
+          <p>
+            You may only upload a photo or other content that you own or have permission to use. Do not
+            upload anything infringing, unlawful, or showing another person without their consent. To
+            report content, see our{' '}
+            <a className="text-forest underline" href="/takedown">Report content / Takedown</a> page.
+          </p>
+        </Section>
+
         <Section id="retention" title="5. How long we keep it — automatic deletion every 3 months">
           <p>
             We practise data minimisation. <strong>We do not keep your personal data indefinitely.</strong>{' '}

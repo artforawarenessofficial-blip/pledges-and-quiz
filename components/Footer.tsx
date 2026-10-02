@@ -94,6 +94,9 @@ export function Footer() {
             <Link href="/privacy" className="text-[color:var(--muted)] text-sm hover:text-forest underline">
               Privacy Policy &amp; Terms
             </Link>
+            <Link href="/takedown" className="text-[color:var(--muted)] text-sm hover:text-forest underline">
+              Report content / Takedown
+            </Link>
             <p className="text-[color:var(--muted)] text-sm text-center sm:text-right">
               Turning intentions into action. · © {new Date().getFullYear()} COMMUNITREE &amp; EZONE
             </p>

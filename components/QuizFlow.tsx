@@ -400,7 +400,7 @@ function QuizForm({ quiz, onSubmit }: { quiz: QuizWithQuestions, onSubmit: (data
               <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline font-medium" onClick={e => e.stopPropagation()}>
                 Privacy Policy &amp; Terms
               </a>
-              , including how my data (and any child&apos;s data I submit) is used, stored, and deleted after 3 months. <span className="text-red-500">*</span>
+              , including how my data (and any child&apos;s data I submit) is used, stored, and deleted after 3 months. If I am under 18, my parent, guardian or school has consented to my details being submitted. <span className="text-red-500">*</span>
             </span>
           </label>
 

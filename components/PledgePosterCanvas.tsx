@@ -326,7 +326,7 @@ export const PledgePosterCanvas = forwardRef<HTMLCanvasElement, Props>(
             try {
               const font = new FontFace(
                 fontName,
-                'url(https://fonts.gstatic.com/s/bigshouldersdisplay/v21/fC1MPZJEZG-e9gHhdI4-NBbfd2ys3SjJCx12wPgf9g-_3F0YdY86JF46SRP4yZQ.woff2)',
+                'url(/fonts/BigShouldersDisplay-Bold.woff2)',
                 { weight: '700', style: 'normal' }
               );
               const loaded = await font.load();
